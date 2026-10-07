@@ -14,9 +14,24 @@ import tableDataDevelopment from 'views/admin/dataTables/variables/tableDataDeve
 import tableDataCheck from 'views/admin/dataTables/variables/tableDataCheck.json';
 import tableDataColumns from 'views/admin/dataTables/variables/tableDataColumns.json';
 import tableDataComplex from 'views/admin/dataTables/variables/tableDataComplex.json';
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useAuth } from 'contexts/AuthContext';
 
 export default function AppHome() {
+  const { refetch } = useAuth();
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refetch();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () =>
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [refetch]);
+
   return (
     <Box pt={{ base: '130px', md: '80px', xl: '80px' }}>
       <SimpleGrid
