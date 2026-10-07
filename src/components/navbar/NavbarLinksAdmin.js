@@ -20,6 +20,7 @@ import { SearchBar } from 'components/navbar/searchBar/SearchBar';
 import { SidebarResponsive } from 'components/sidebar/Sidebar';
 import PropTypes from 'prop-types';
 import React from 'react';
+import { useAuth } from 'contexts/AuthContext';
 // Assets
 import navImage from 'assets/img/layout/Navbar.png';
 import { MdNotificationsNone, MdInfoOutline } from 'react-icons/md';
@@ -28,6 +29,7 @@ import { FaEthereum } from 'react-icons/fa';
 import routes from 'routes';
 export default function HeaderLinks(props) {
   const { secondary } = props;
+  const { user, logout } = useAuth();
   const { colorMode, toggleColorMode } = useColorMode();
   // Chakra Color Mode
   const navbarIcon = useColorModeValue('gray.400', 'white');
@@ -243,7 +245,7 @@ export default function HeaderLinks(props) {
           <Avatar
             _hover={{ cursor: 'pointer' }}
             color="white"
-            name="Adela Parkson"
+            name={user?.name || 'User'}
             bg="#11047A"
             size="sm"
             w="40px"
@@ -270,7 +272,7 @@ export default function HeaderLinks(props) {
               fontWeight="700"
               color={textColor}
             >
-              👋&nbsp; Hey, Adela
+              👋&nbsp; Hey, {user?.name?.split(' ')[0] || 'there'}
             </Text>
           </Flex>
           <Flex flexDirection="column" p="10px">
@@ -296,6 +298,7 @@ export default function HeaderLinks(props) {
               color="red.400"
               borderRadius="8px"
               px="14px"
+              onClick={logout}
             >
               <Text fontSize="sm">Log out</Text>
             </MenuItem>

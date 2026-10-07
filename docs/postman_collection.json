@@ -1,0 +1,858 @@
+{
+  "info": {
+    "_postman_id": "f0e1d2c3-4b5a-6978-8a9b-0c1d2e3f4a5b",
+    "name": "Fortezy POS Client Backend",
+    "description": "HTTP API for the Fortezy POS (Point of Sale) client backend.\n\n## Getting started\n1. Start the server: `go run .` (defaults to http://localhost:8080).\n2. Adjust the `baseUrl` collection variable if needed.\n3. Run **Auth > Login** first. It stores the returned JWT in the `token`\n   collection variable, which every protected request uses via Bearer auth.\n4. Store-scoped requests (categories, products, sales) additionally require the\n   logged-in user to be assigned to a store, otherwise they return `403`.\n\n## Suggested run order\nLogin (saves `token`) → Users > Get current user → Categories > List →\nProducts > List (saves `productId`) → Products > Get detail (saves `variantId`)\n→ Sales > Create (saves `saleId`) → Sales > List → Sales > Get detail →\nSales > Void.\n\nList/detail requests write IDs into collection variables so later requests can\nreference them ({{productId}}, {{saleId}}, ...).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token_expires_at",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "storeId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "categoryId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "variantId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "saleId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "System",
+      "description": "Operational and documentation endpoints. No authentication required.",
+      "item": [
+        {
+          "name": "Health check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Service reports ok', function () {",
+                  "  pm.expect(pm.response.json().status).to.eql('ok');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Returns the service status. Useful for liveness probes."
+          },
+          "response": []
+        },
+        {
+          "name": "OpenAPI spec",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/openapi.yaml",
+              "host": ["{{baseUrl}}"],
+              "path": ["openapi.yaml"]
+            },
+            "description": "The raw OpenAPI 3.0 specification (YAML)."
+          },
+          "response": []
+        },
+        {
+          "name": "Swagger UI",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/docs",
+              "host": ["{{baseUrl}}"],
+              "path": ["docs"]
+            },
+            "description": "Interactive Swagger UI rendering the OpenAPI spec. Open in a browser."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints. Login is public; it returns a signed JWT used by all protected requests.",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "let res = {};",
+                  "try { res = pm.response.json(); } catch (e) {}",
+                  "",
+                  "pm.test('Response contains a token', function () {",
+                  "  pm.expect(res).to.have.property('token');",
+                  "});",
+                  "",
+                  "if (res.token) {",
+                  "  pm.collectionVariables.set('token', res.token);",
+                  "  pm.collectionVariables.set('token_expires_at', res.expires_at || '');",
+                  "  if (res.user && res.user.id) {",
+                  "    pm.collectionVariables.set('userId', res.user.id);",
+                  "  }",
+                  "  console.log('Saved token to collection variable (expires ' + res.expires_at + ')');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Authenticates a user with email and password and returns a signed JWT.\n\nOn success, this request stores `token`, `token_expires_at`, and `userId` as collection variables for use by subsequent requests."
+          },
+          "response": [
+            {
+              "name": "200 - Authenticated",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"password123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"expires_at\": \"2026-08-11T01:02:19+07:00\",\n  \"user\": {\n    \"id\": \"3f2504e0-4f89-11d3-9a0c-0305e82c3301\",\n    \"name\": \"John Doe\",\n    \"email\": \"john.doe@example.com\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login (invalid credentials)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "pm.test('Returns a generic error', function () {",
+                  "  pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Negative case: a wrong password returns `401` with a generic error, so it never reveals which credential was wrong."
+          },
+          "response": [
+            {
+              "name": "401 - Invalid credentials",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"wrong-password\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"invalid email or password\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "User profile endpoints. Requires a valid JWT.",
+      "item": [
+        {
+          "name": "Get current user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "let res = {};",
+                  "try { res = pm.response.json(); } catch (e) {}",
+                  "if (res.id) {",
+                  "  pm.collectionVariables.set('userId', res.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "me"]
+            },
+            "description": "Returns the authenticated user's profile. Never includes the password."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "description": "Read-only product categories for the authenticated user's store. Requires JWT + store assignment.",
+      "item": [
+        {
+          "name": "List categories",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "let res = {};",
+                  "try { res = pm.response.json(); } catch (e) {}",
+                  "if (res.data && res.data.length > 0) {",
+                  "  pm.collectionVariables.set('categoryId', res.data[0].id);",
+                  "  console.log('Saved categoryId=' + res.data[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Items per page (default 10, max 100)"
+                }
+              ]
+            },
+            "description": "Returns paginated categories belonging to the user's store, sorted alphabetically by name. Stores the first category id in `categoryId`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "description": "Read-only product catalog for the authenticated user's store. Requires JWT + store assignment.",
+      "item": [
+        {
+          "name": "List products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "let res = {};",
+                  "try { res = pm.response.json(); } catch (e) {}",
+                  "if (res.data && res.data.length > 0) {",
+                  "  pm.collectionVariables.set('productId', res.data[0].id);",
+                  "  if (res.data[0].category_id) {",
+                  "    pm.collectionVariables.set('categoryId', res.data[0].category_id);",
+                  "  }",
+                  "  console.log('Saved productId=' + res.data[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Items per page (default 10, max 100)"
+                }
+              ]
+            },
+            "description": "Returns paginated active products for the user's store, sorted alphabetically by name. Stores the first product id in `productId`."
+          },
+          "response": []
+        },
+        {
+          "name": "List products by category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "let res = {};",
+                  "try { res = pm.response.json(); } catch (e) {}",
+                  "if (res.data && res.data.length > 0 && !pm.collectionVariables.get('productId')) {",
+                  "  pm.collectionVariables.set('productId', res.data[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products?category_id={{categoryId}}&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"],
+              "query": [
+                {
+                  "key": "category_id",
+                  "value": "{{categoryId}}",
+                  "description": "Filter products by category UUID"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Same as List products but filtered by `category_id`. Run Categories > List categories first to populate `categoryId`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get product detail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "let res = {};",
+                  "try { res = pm.response.json(); } catch (e) {}",
+                  "if (res.variants && res.variants.length > 0) {",
+                  "  pm.collectionVariables.set('variantId', res.variants[0].id);",
+                  "  console.log('Saved variantId=' + res.variants[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{productId}}",
+                  "description": "Product UUID"
+                }
+              ]
+            },
+            "description": "Returns a single product with its active variants. Only returns products belonging to the user's store. Stores the first variant id in `variantId`."
+          },
+          "response": [
+            {
+              "name": "200 - Product detail",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/products/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{productId}}"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"category_id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n  \"name\": \"Iced Coffee\",\n  \"description\": \"Freshly brewed cold coffee\",\n  \"price\": 25000,\n  \"sku\": \"BEV-001\",\n  \"image_url\": \"https://example.com/images/iced-coffee.jpg\",\n  \"variants\": [\n    {\n      \"id\": \"660e8400-e29b-41d4-a716-446655440001\",\n      \"name\": \"Large\",\n      \"price\": 35000,\n      \"sku\": \"BEV-001-L\"\n    }\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sales",
+      "description": "Sales and receipt endpoints. Requires JWT + store assignment. Creating or voiding a sale is blocked when the store is suspended.",
+      "item": [
+        {
+          "name": "Create sale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "let res = {};",
+                  "try { res = pm.response.json(); } catch (e) {}",
+                  "if (res.id) {",
+                  "  pm.collectionVariables.set('saleId', res.id);",
+                  "  console.log('Saved saleId=' + res.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_method\": \"cash\",\n  \"notes\": \"\",\n  \"items\": [\n    {\n      \"product_id\": \"{{productId}}\",\n      \"quantity\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sales",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sales"]
+            },
+            "description": "Creates a sale with line items. The server snapshots product/variant names and prices, calculates the total, and generates an invoice number (`INV-YYYYMMDD-SEQ`). Runs in a transaction.\n\nRun Products > List products first to populate `productId`. Stores the new sale id in `saleId`."
+          },
+          "response": [
+            {
+              "name": "201 - Sale created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"payment_method\": \"cash\",\n  \"notes\": \"\",\n  \"items\": [\n    {\n      \"product_id\": \"{{productId}}\",\n      \"quantity\": 2\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/sales",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "sales"]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"id\": \"9c1f8a2e-3b4d-4c5e-8f90-1a2b3c4d5e6f\",\n  \"invoice_number\": \"INV-20260823-001\",\n  \"status\": \"completed\",\n  \"payment_method\": \"cash\",\n  \"total_amount\": 50000,\n  \"notes\": \"\",\n  \"created_at\": \"2026-08-23T14:30:00+07:00\",\n  \"items\": [\n    {\n      \"id\": \"1a2b3c4d-5e6f-7081-92a3-b4c5d6e7f809\",\n      \"product_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"variant_id\": null,\n      \"product_name\": \"Iced Coffee\",\n      \"variant_name\": \"\",\n      \"price\": 25000,\n      \"quantity\": 2,\n      \"subtotal\": 50000\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create sale (with variant)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "let res = {};",
+                  "try { res = pm.response.json(); } catch (e) {}",
+                  "if (res.id) {",
+                  "  pm.collectionVariables.set('saleId', res.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_method\": \"transfer\",\n  \"notes\": \"Customer requested gift wrap\",\n  \"items\": [\n    {\n      \"product_id\": \"{{productId}}\",\n      \"variant_id\": \"{{variantId}}\",\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sales",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sales"]
+            },
+            "description": "Creates a sale for a specific product variant. Run Products > Get product detail first to populate `variantId`. A missing/invalid variant returns `400`."
+          },
+          "response": []
+        },
+        {
+          "name": "List sales",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "let res = {};",
+                  "try { res = pm.response.json(); } catch (e) {}",
+                  "if (res.data && res.data.length > 0) {",
+                  "  pm.collectionVariables.set('saleId', res.data[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sales?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sales"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Items per page (default 10, max 100)"
+                }
+              ]
+            },
+            "description": "Returns paginated sales for the user's store, most recent first. Stores the newest sale id in `saleId`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get sale detail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sales/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sales", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{saleId}}",
+                  "description": "Sale UUID"
+                }
+              ]
+            },
+            "description": "Returns a single sale with its line items — the receipt data. Only returns sales belonging to the user's store."
+          },
+          "response": []
+        },
+        {
+          "name": "Void sale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "let res = {};",
+                  "try { res = pm.response.json(); } catch (e) {}",
+                  "pm.test('Sale status is voided', function () {",
+                  "  pm.expect(res.status).to.eql('voided');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sales/:id/void",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sales", ":id", "void"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{saleId}}",
+                  "description": "Sale UUID"
+                }
+              ]
+            },
+            "description": "Marks a completed sale as voided. Only `completed` sales can be voided; voiding is irreversible. Returns `409` if already voided, `422` if not voidable in its current state, and `403` if the store is suspended."
+          },
+          "response": [
+            {
+              "name": "409 - Already voided",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/sales/:id/void",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "sales", ":id", "void"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{saleId}}"
+                    }
+                  ]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"sale is already voided\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

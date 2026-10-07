@@ -15,6 +15,7 @@ import NFTMarketplace from 'views/admin/marketplace';
 import Profile from 'views/admin/profile';
 import DataTables from 'views/admin/dataTables';
 import RTL from 'views/admin/rtl';
+import AppHome from 'views/app';
 
 // Auth Imports
 import SignInCentered from 'views/auth/signIn';
@@ -69,6 +70,20 @@ const routes = [
     path: '/rtl-default',
     icon: <Icon as={MdHome} width="20px" height="20px" color="inherit" />,
     component: <RTL />,
+  },
+  {
+    name: 'POS',
+    layout: '/app',
+    path: '/',
+    icon: (
+      <Icon
+        as={MdOutlineShoppingCart}
+        width="20px"
+        height="20px"
+        color="inherit"
+      />
+    ),
+    component: <AppHome />,
   },
 ];
 
