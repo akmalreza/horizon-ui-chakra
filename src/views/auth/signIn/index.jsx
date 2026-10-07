@@ -42,6 +42,7 @@ import {
 import { HSeparator } from 'components/separator/Separator';
 import DefaultAuth from 'layouts/auth/Default';
 import { useAuth } from 'contexts/AuthContext';
+import * as authStorage from 'lib/authStorage';
 // Assets
 import illustration from 'assets/img/auth/auth.png';
 import { FcGoogle } from 'react-icons/fc';
@@ -70,9 +71,33 @@ function SignIn() {
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const { login } = useAuth();
+  const { login, refetch } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const redirectTo = location.state?.from?.pathname || '/app';
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const checkSession = async () => {
+      if (!authStorage.getToken()) {
+        return;
+      }
+
+      await refetch();
+
+      if (isMounted && authStorage.getToken()) {
+        navigate(redirectTo, { replace: true });
+      }
+    };
+
+    checkSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleClick = () => setShow(!show);
 
